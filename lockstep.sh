@@ -31,3 +31,16 @@ fi
 
 echo "Let's do this!"
 
+# I would like to log this contents, but don't know how to reprompt the user to
+# stop recording after each iteration. As such, I send all output to /dev/null
+# for now.
+gitwatch -m "Lockstep commit at %d" . > /dev/null &
+
+while [ "$should_stop" != "y" ] && [ "$should_stop" != "Y" ]
+do
+  echo "Stop recording? (y/N)"
+  read should_stop
+  # kill gitwatch
+  kill %1
+done
+
