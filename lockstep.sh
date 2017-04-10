@@ -67,9 +67,10 @@ video_start_date=$(echo $video_start_malformed | cut -d' ' -f1 | sed 's/:/-/g')
 video_start_time=$(echo $video_start_malformed | cut -d' ' -f2)
 video_start_epoch=$(date -ud "$video_start_date $video_start_time" +"%s")
 
+video_duration=$(read_exif_value "^Duration")
+
 # SimpleScreenRecorder and Kazam write "12.345 s" if less than a minute,
 # but "0:12:34" if longer.
-video_duration=$(read_exif_value "^Duration")
 
 # TODO: the [[]] notation isn't POSIX compliant and should be replaced for
 # maximum cross compatability. It works in bash, ksh, and zsh IIRC.
@@ -80,6 +81,57 @@ else
   video_duration_seconds=$(echo $video_duration | grep -Po "^\d+")
 fi
 
-# echo "video_start_time: $video_start_time"
-echo "video_duration_seconds: $video_duration_seconds"
-echo "video_start_epoch: $video_start_epoch"
+idx=0
+IFS=$'\n'
+for commit in $commits
+do
+  shas[idx]=`echo $commit | cut -d' ' -f1`
+
+  commit_epoch=$(date -d $(echo $commit | cut -d' ' -f5-6) +%s)
+
+  # gitwatch waits 2 seconds before committing -- this compensates
+  timestamps[idx]=`expr $commit_epoch - $video_start_epoch - 2`
+
+  (( idx++ ))
+done
+
+# The last subtitle needs an end time -- this sets that end time to the end
+# of the screencast.
+timestamps+=($video_duration_seconds)
+
+srt_time_formatter () {
+  # $1: seconds into the video (timestamp)
+
+  # We abuse `date` to show time, by displaying the time since the epoch
+  date -ud "@$1" +"%H:%M:%S,$2"
+}
+
+srt_start_formatter () {
+  srt_time_formatter $1 000
+}
+
+srt_end_formatter () {
+  # $1: seconds into the video (timestamp)
+  srt_time_formatter `expr $1 - 1` 900
+}
+
+srt_from_log () {
+  # $1: the output file
+  idx=0
+  for sha in ${shas[@]}
+  do
+    srt_start_time=$(srt_start_formatter ${timestamps[$idx]})
+    srt_end_time=$(srt_end_formatter ${timestamps[`expr $idx + 1`]})
+
+    echo $((( $idx + 1 ))) >> $1
+    echo "$srt_start_time --> $srt_end_time" >> $1
+    echo $sha >> $1
+    echo >> $1
+    (( idx++ ))
+  done
+}
+
+read -e -p "Where would you like to save the srt file? " srt_path
+srt_from_log srt_path
+
+echo "Your subtitles have been saved!"
