@@ -44,26 +44,42 @@ do
   kill %1
 done
 
-echo "Enter the path to the recorded screencast:"
-read screencast_path
-
-read -e -p "Enter the path to the recorded screencast: " screencast_path
-
-
 # If $starting_branch is an empty string, there were no commits in the repo
 # when be began (and thus no branches). In that case, *all* commits belong in
 # screencast. We don't use the initial `git status` check, as the user could
 # have manually created a repo, but never committed anything.
 if [ "$starting_branch" == "" ]
 then
-  commits=`git log --oneline> $1`
+  commits=`git log --oneline --reverse`
 else
-  commits=`git log -v "$starting_branch..$screencast_branch" --oneline > $1`
+  commits=`git log -v "$starting_branch..$screencast_branch" --oneline --reverse`
 fi
 
-video_start_malformed=`exiftool "$screencast_path" | grep -Po "(?<=File Access Date/Time {11}: ).+"`
-video_start_time="`echo $video_start_malformed | cut -d' ' -f1 | sed 's/:/-/g'` `echo $video_start_malformed | cut -d' ' -f2`"
-video_start_epoch=date -d "$formatted_date" +%s
+read -e -p "Enter the path to the recorded screencast: " screencast_path
+exif=$(exiftool "$screencast_path")
 
-video_duration=`exiftool "$screencast_path" | grep -Po "(?<=File Access Date/Time {24}: ).+"`
+read_exif_value () {
+  grep -P "$1" <<< "$exif" | grep -Po "(?<=: ).*"
+}
 
+video_start_malformed=$(read_exif_value "Create Date")
+video_start_date=$(echo $video_start_malformed | cut -d' ' -f1 | sed 's/:/-/g')
+video_start_time=$(echo $video_start_malformed | cut -d' ' -f2)
+video_start_epoch=$(date -ud "$video_start_date $video_start_time" +"%s")
+
+# SimpleScreenRecorder and Kazam write "12.345 s" if less than a minute,
+# but "0:12:34" if longer.
+video_duration=$(read_exif_value "^Duration")
+
+# TODO: the [[]] notation isn't POSIX compliant and should be replaced for
+# maximum cross compatability. It works in bash, ksh, and zsh IIRC.
+if [[ $video_duration =~ ":" ]]
+then
+  video_duration_seconds=$(date -ud "1970-01-01 $video_duration" +%s)
+else
+  video_duration_seconds=$(echo $video_duration | grep -Po "^\d+")
+fi
+
+# echo "video_start_time: $video_start_time"
+echo "video_duration_seconds: $video_duration_seconds"
+echo "video_start_epoch: $video_start_epoch"
