@@ -49,9 +49,6 @@ read screencast_path
 
 read -e -p "Enter the path to the recorded screencast: " screencast_path
 
-exif_date_time=`exiftool "$screencast_path" | grep -Po "(?<=File Access Date/Time {11}: ).+"`
-formatted_date="`echo $exif_date_time | cut -d' ' -f1 | sed 's/:/-/g'` `echo $exif_date_time | cut -d' ' -f2`"
-date -d "$formatted_date" +%s
 
 # If $starting_branch is an empty string, there were no commits in the repo
 # when be began (and thus no branches). In that case, *all* commits belong in
@@ -59,7 +56,14 @@ date -d "$formatted_date" +%s
 # have manually created a repo, but never committed anything.
 if [ "$starting_branch" == "" ]
 then
-  git log > $1
+  commits=`git log --oneline> $1`
 else
-  git log -v "$starting_branch..$screencast_branch" > $1
+  commits=`git log -v "$starting_branch..$screencast_branch" --oneline > $1`
 fi
+
+video_start_malformed=`exiftool "$screencast_path" | grep -Po "(?<=File Access Date/Time {11}: ).+"`
+video_start_time="`echo $video_start_malformed | cut -d' ' -f1 | sed 's/:/-/g'` `echo $video_start_malformed | cut -d' ' -f2`"
+video_start_epoch=date -d "$formatted_date" +%s
+
+video_duration=`exiftool "$screencast_path" | grep -Po "(?<=File Access Date/Time {24}: ).+"`
+
