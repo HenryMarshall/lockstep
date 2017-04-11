@@ -15,9 +15,12 @@ in the video all with familiar git commands!
 - Navigate to where you want to record a screencast.
 - Run `lockstep`, it will set up a git repo or create a new branch as needed.
 - Start a screen capture software of your choice (see below for notes on
-  compatibility).
+  compatibility). You'll need to record it all in one take so lockstep can
+  figure out the timestamps, but you'll be free to edit it later.
 - Follow the prompts. Lockstep will never delete any files, commits, branches or
   repos so no need to worry!
+- Upload the `hardcoded` video file to youtube and push your repository up to
+  somewhere public!
 
 
 ## Installation
