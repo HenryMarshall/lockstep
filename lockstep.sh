@@ -38,10 +38,9 @@ gitwatch -m "Lockstep commit at %d" . > /dev/null &
 
 while [ "$should_stop" != "y" ] && [ "$should_stop" != "Y" ]
 do
-  echo "Stop recording? (y/N)"
-  read should_stop
+  read -p "Stop recording? (y/N)" should_stop
   # kill gitwatch
-  kill %1
+  kill %1 2>/dev/null
 done
 
 # If $starting_branch is an empty string, there were no commits in the repo
@@ -131,7 +130,20 @@ srt_from_log () {
   done
 }
 
-read -e -p "Where would you like to save the srt file? " srt_path
-srt_from_log srt_path
+subtitle_path="$(dirname $screencast_path)/$(basename $screencast_path | cut -d. -f1).srt"
+srt_from_log $subtitle_path
 
-echo "Your subtitles have been saved!"
+echo "Your subtitles have been saved to $subtitle_path"
+
+hardcoded_path="$(dirname $screencast_path)/hardcoded.$(basename $screencast_path | cut -d. -f2)"
+read -p "Would you like to create a hardcoded version at $hardcoded_path? (Y/n)" should_hardcode
+
+if [ "$should_hardcode" != "n" ] && [ "$should_hardcode" != "N" ]
+then
+  ffmpeg -i "$screencast_path" -loglevel error -vf \
+    "subtitles=\'$subtitle_path\':force_style='OutlineColour=&H66000000,BorderStyle=3,Outline=4,Alignment=3'" \
+    -c:a copy "$hardcoded_path"
+  echo "Created hardcoded copy"
+fi
+
+echo "All done!"
