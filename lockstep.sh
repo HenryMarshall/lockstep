@@ -35,12 +35,14 @@ echo "Let's do this!"
 # stop recording after each iteration. As such, I send all output to /dev/null
 # for now.
 gitwatch -m "Lockstep commit at %d" . > /dev/null &
+gitwatch_pid=$!
+disown
 
 while [ "$should_stop" != "y" ] && [ "$should_stop" != "Y" ]
 do
   read -p "Stop recording? (y/N)" should_stop
   # kill gitwatch
-  kill %1 2>/dev/null
+  kill $gitwatch_pid
 done
 
 # If $starting_branch is an empty string, there were no commits in the repo
